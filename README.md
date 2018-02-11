@@ -1,4 +1,6 @@
-# inx-pathops
+# inkscape-extension-pathops
+
+This is a fork of [inx-pathops](https://gitlab.com/su-v/inx-pathops)
 
 Inkscape extension to apply a path operation multiple times to a
 selection of objects.
