@@ -1,0 +1,18 @@
+# ----------------------------------------------------------------------
+# pathops/pylintrc
+# ----------------------------------------------------------------------
+
+[BASIC]
+good-names=i,j,k,_,_x,_y,x,y,r,t
+
+[TYPECHECK]
+#ignored-modules=numpy,lxml,lxml.etree,PIL,wand
+ignored-modules=numpy,lxml,lxml.etree
+
+[MESSAGES CONTROL]
+disable=locally-disabled,locally-enabled,similarities
+
+[REPORTS]
+reports=no
+
+# vim: expandtab shiftwidth=4 tabstop=8 softtabstop=4 fileencoding=utf-8
