@@ -175,26 +175,45 @@ def run(cmd_format, stdin_str=None, verbose=False):
         inkex.errormsg(err)
 
 
-def run_pathops(svgfile, top_path, id_list, ink_verb, dry_run=False):
-    """Run path ops with top_path on a list of other object ids."""
+def create_pathops(top_path, id_list, ink_verb):
+    """Create the list of commands to execute for a single pathop."""
     # build list with command line arguments
     cmdlist = []
-    cmdlist.append("inkscape")
     for node_id in id_list:
         cmdlist.append("--select=" + top_path)
         cmdlist.append("--verb=EditDuplicate")
         cmdlist.append("--select=" + node_id)
         cmdlist.append("--verb=" + ink_verb)
         cmdlist.append("--verb=EditDeselect")
-    cmdlist.append("--verb=FileSave")
-    cmdlist.append("--verb=FileQuit")
-    cmdlist.append("-f")
-    cmdlist.append(svgfile)
-    # process command list
-    if dry_run:
-        inkex.debug(cmdlist)
-    else:
-        run(cmdlist)
+    return cmdlist
+
+
+def run_pathops(svgfile, cmds, max_ops, dry_run=False):
+    """Run the pathops in chunks of max_ops commands."""
+    count = 0
+    chunk = cmds[:max_ops]
+    cmds = cmds[max_ops:]
+    while len(chunk) > 0:
+        # build list with command line arguments
+        count += 1
+        cmdlist = []
+        cmdlist.append("inkscape")
+        for cmd in chunk:
+            cmdlist += cmd
+        cmdlist.append("--verb=FileSave")
+        cmdlist.append("--verb=FileQuit")
+        cmdlist.append("-f")
+        cmdlist.append(svgfile)
+        # process command list
+        if dry_run:
+            inkex.debug("\n# Processing {}. chunk ".format(count) +
+                        "with {} objects ...".format(len(chunk)))
+            inkex.debug(cmdlist)
+        else:
+            run(cmdlist)
+        chunk = cmds[:max_ops]
+        cmds = cmds[max_ops:]
+    return count
 
 
 def cleanup(tempfile):
@@ -315,9 +334,12 @@ class PathOps(inkex.Effect):
     def loop_pathops(self, top_path, other_paths):
         """Loop through selected items and run external command(s)."""
         # init variables
-        count = 0
         max_ops = self.options.max_ops or 500
         ink_verb = self.options.ink_verb or "SelectionDiff"
+        full_stack = False
+        if ink_verb == "Trim":
+            ink_verb = "SelectionDiff"
+            full_stack = True
         dry_run = self.options.dry_run
         tempfile = os.path.splitext(self.svg_file)[0] + "-pathops.svg"
         # prepare
@@ -327,13 +349,18 @@ class PathOps(inkex.Effect):
         else:
             with open(tempfile, 'wb') as copycat:
                 self.document.write(copycat)
-        # loop through sorted id list, process in chunks
-        for chunk in chunks(other_paths, max_ops):
-            count += 1
-            if dry_run:
-                inkex.debug("\n# Processing {}. chunk ".format(count) +
-                            "with {} objects ...".format(len(chunk)))
-            run_pathops(tempfile, top_path, chunk, ink_verb, dry_run)
+        # create a list of commands to execute
+        cmds = []
+        while len(other_paths) > 0:
+            cmds.append(create_pathops(top_path, other_paths, ink_verb))
+            if full_stack:
+                # now we make the second path the new top and perform the
+                # same operation again on it and the remaining paths
+                top_path = other_paths.pop()
+            else:
+                break
+        # run the commands, if necessary in chunks of up to max_ops at a time
+        count = run_pathops(tempfile, cmds, max_ops, dry_run)
         # finish up
         if dry_run:
             inkex.debug("\n# {} chunks processed, ".format(count) +

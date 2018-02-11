@@ -15,6 +15,7 @@
     <option value="SelectionDivide">Division</option>
     <option value="SelectionCutPath">Cut Path</option>
     <option value="SelectionCombine">Combine</option>
+    <option value="Trim">Trim</option>
   </param>
   <param name="max_ops" type="int" min="2" max="9999" _gui-text="Max operations per run">500</param>
   <param name="recursive_sel" type="boolean" _gui-text="Recurse into groups" _gui-description="If unchecked, only direct children of top-level groups in the selection will be processed for inclusion.">true</param>
