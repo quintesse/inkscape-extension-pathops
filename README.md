@@ -22,6 +22,15 @@ Objects which are considered "valid" for path operations:
 Other graphic elements like clones or bitmap images are silently ignored.
 
 
+## Operations
+
+All operations work exactly like their counterparts in Inkscape's `Path`
+menu except for `Trim` which is an additional operator. `Trim` works like
+`Difference` except that it applies the operation on the entire stack of
+selected paths. This means it starts at the top and applies `Difference`
+on all the paths below it, then it goes from the top element to the second
+element and repeats the entire process.
+
 ## Options
 
 ### Max operations per run
@@ -77,6 +86,7 @@ and relaunch Inkscape.
 - 5 Division
 - 6 Cut Path
 - 7 Combine
+- 8 Triim
 
 
 ## Background
