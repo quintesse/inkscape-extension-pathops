@@ -41,7 +41,7 @@ try:
 except ImportError:
     import inkex
 import simplestyle
-
+from lxml import etree
 
 __version__ = '0.4'
 
@@ -69,7 +69,7 @@ def get_defs(node):
     try:
         return node.xpath(path, namespaces=inkex.NSS)[0]
     except IndexError:
-        return inkex.etree.SubElement(node, inkex.addNS('defs', 'svg'))
+        return etree.SubElement(node, inkex.addNS('defs', 'svg'))
 
 
 def is_group(node):
@@ -202,7 +202,6 @@ def run_pathops(svgfile, cmds, max_ops, dry_run=False):
             cmdlist += cmd
         cmdlist.append("--verb=FileSave")
         cmdlist.append("--verb=FileQuit")
-        cmdlist.append("-f")
         cmdlist.append(svgfile)
         # process command list
         if dry_run:
@@ -234,33 +233,33 @@ class PathOps(inkex.Effect):
         inkex.Effect.__init__(self)
 
         # options
-        self.OptionParser.add_option("--ink_verb",
-                                     action="store", type="string",
+        self.arg_parser.add_argument("--ink_verb",
+                                     action="store", type=str,
                                      dest="ink_verb", default="SelectionDiff",
                                      help="Inkscape verb for path op")
-        self.OptionParser.add_option("--max_ops",
-                                     action="store", type="int",
+        self.arg_parser.add_argument("--max_ops",
+                                     action="store", type=int,
                                      dest="max_ops", default=500,
                                      help="Max ops per external run")
-        self.OptionParser.add_option("--recursive_sel",
-                                     action="store", type="inkbool",
+        self.arg_parser.add_argument("--recursive_sel",
+                                     action="store", type=inkex.utils.Boolean,
                                      dest="recursive_sel", default=True,
                                      help="Recurse beyond one group level")
-        self.OptionParser.add_option("--keep_top",
-                                     action="store", type="inkbool",
+        self.arg_parser.add_argument("--keep_top",
+                                     action="store", type=inkex.utils.Boolean,
                                      dest="keep_top", default=True,
                                      help="Keep top element when done")
-        self.OptionParser.add_option("--default_stroke",
-                                     action="store", type="string",
+        self.arg_parser.add_argument("--default_stroke",
+                                     action="store", type=str,
                                      dest="default_stroke", default="#000000",
                                      help="Default stroke color")
-        self.OptionParser.add_option("--default_stroke_width",
-                                     action="store", type="string",
+        self.arg_parser.add_argument("--default_stroke_width",
+                                     action="store", type=str,
                                      dest="default_stroke_width",
                                      default="1px",
                                      help="Default stroke width")
-        self.OptionParser.add_option("--dry_run",
-                                     action="store", type="inkbool",
+        self.arg_parser.add_argument("--dry_run",
+                                     action="store", type=inkex.utils.Boolean,
                                      dest="dry_run", default=False,
                                      help="Dry-run without exec")
 
@@ -304,13 +303,13 @@ class PathOps(inkex.Effect):
     def get_selected_ids(self):
         """Return a list of valid ids for inkscape path operations."""
         id_list = []
-        if not len(self.selected):
+        if not len(self.svg.selected):
             pass
         else:
             # level = 0: unlimited recursion into groups
             # level = 1: process top-level groups only
             level = 0 if self.options.recursive_sel else 1
-            for node in self.selected.values():
+            for node in self.svg.selected.values():
                 self.recurse_selection(node, id_list, level)
         if len(id_list) < 2:
             inkex.errormsg("This extension requires at least 2 elements "
@@ -341,7 +340,7 @@ class PathOps(inkex.Effect):
             ink_verb = "SelectionDiff"
             full_stack = True
         dry_run = self.options.dry_run
-        tempfile = os.path.splitext(self.svg_file)[0] + "-pathops.svg"
+        tempfile = os.path.splitext(self.options.input_file)[0] + "-pathops.svg"
         # prepare
         if dry_run:
             inkex.debug("# Top object id: {}".format(top_path))
@@ -367,8 +366,8 @@ class PathOps(inkex.Effect):
                         "with {} total objects.".format(len(other_paths)))
         else:
             # replace current document with content of temp copy
-            xmlparser = inkex.etree.XMLParser(huge_tree=True)
-            self.document = inkex.etree.parse(tempfile, parser=xmlparser)
+            xmlparser = etree.XMLParser(huge_tree=True)
+            self.document = etree.parse(tempfile, parser=xmlparser)
             # optionally delete top-most element when done
             if not self.options.keep_top:
                 top_node = self.getElementById(top_path)
@@ -444,7 +443,7 @@ class PathOps(inkex.Effect):
                     if mode == 'purge':
                         tagref.getparent().remove(tagref)
                     elif mode == 'placeholder':
-                        temp = inkex.etree.Element(inkex.addNS('path', 'svg'))
+                        temp = etree.Element(inkex.addNS('path', 'svg'))
                         temp.set('id', href)
                         temp.set('d', 'M 0,0 Z')
                         self.document.getroot().append(temp)
@@ -455,12 +454,12 @@ class PathOps(inkex.Effect):
         """Iterate all elements, build id dicts (doc_ids, selected)."""
         doc = self.document if doc is None else doc
         id_list = list(self.options.ids)
-        for node in doc.getroot().iter(tag=inkex.etree.Element):
+        for node in doc.getroot().iter(tag=etree.Element):
             if 'id' in node.attrib:
                 node_id = node.get('id')
                 self.doc_ids[node_id] = 1
                 if node_id in id_list:
-                    self.selected[node_id] = node
+                    self.svg.selected[node_id] = node
                     id_list.remove(node_id)
 
     def getselected(self):
@@ -474,6 +473,6 @@ class PathOps(inkex.Effect):
 
 if __name__ == '__main__':
     ME = PathOps()
-    ME.affect()
+    ME.run()
 
 # vim: et shiftwidth=4 tabstop=8 softtabstop=4 fileencoding=utf-8 textwidth=79
